@@ -9,7 +9,7 @@
 #include<string.h>
 #include<stdlib.h>
 #include<unistd.h>
-#define SERVER_PORT 12345
+#define SERVER_PORT 37296
 void error(const char * msg){
 printf("Error : %s\n",msg);
 exit(1);
