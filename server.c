@@ -34,6 +34,8 @@ int accept_connection(int fd, int port);
 
 int setup_listen(int fd);
 
+void close_with_message(int client_fd, char message[]);
+
 void get_incoming_msg(char message_buf[], int client_fd);
 
 void send_outgoing_msg(char message[], int client_fd);
@@ -67,10 +69,45 @@ int main(int argc, char *argv[])
         // Do something with receiving message
         printf("Received message: %s", incoming);
 
-        if (strcasecmp(incoming, "BYE\n") == 0) {
-            close(client_fd);
+        if (strncasecmp(incoming, "BYE", 3) == 0) {
+            close_with_message(client_fd, "Goodbye!");
             client_fd = setup_listen(fd);
             continue;
+        }
+        if (strncasecmp(incoming, "GET", 3) == 0) {
+            if (strlen(incoming) <= 4) {
+                close_with_message(client_fd, "SERVER 500 Get Error\n");
+                client_fd = setup_listen(fd);
+                continue;
+            }
+
+            char file_name[100];
+            strcpy(file_name, incoming + 4);
+            file_name[strlen(incoming + 4) - 1] = '\0'; // get rid of newline on the end filename
+
+            FILE *file = fopen(file_name, "r"); // file file_name after "GET "
+
+            if (!file) {
+                close_with_message(client_fd, "SERVER 404 Not Found\n");
+                client_fd = setup_listen(fd);
+                continue;
+            }
+
+            char line[200]; // should be good enough lol
+            memset(line,0,strlen(line));
+
+            while (fgets(line, sizeof(line), file) != NULL) {
+                send_outgoing_msg(line, client_fd);
+            }
+
+            fclose(file);
+
+            close_with_message(client_fd, "found!\n");
+            client_fd = setup_listen(fd);
+            continue;
+
+
+           // todo close here
         }
         break;
 
@@ -79,6 +116,11 @@ int main(int argc, char *argv[])
 
    
     return 0;
+}
+
+void close_with_message(int client_fd, char message[]) {
+    send_outgoing_msg(message, client_fd);
+    close(client_fd);
 }
 
 int setup_connection() {
