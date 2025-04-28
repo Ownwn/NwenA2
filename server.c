@@ -7,23 +7,15 @@
  * As a matter of good programming habit, you should break up your imple-
  * mentation into functions. All these functions should contained in this
  * file as you are only allowed to submit this file.
- */ 
-
-#include <stdio.h>
+ */
 // Include necessary header files
+#include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-
-// from tutorial
-struct sockaddr_in {
-    short sin_family;
-    unsigned short sin_port;
-    struct in_addr sin_addr;
-};
 
 /**
  * The main function should be able to accept a command-line argument
@@ -32,7 +24,16 @@ struct sockaddr_in {
  * 
  * Read the assignment handout for more details about the server program
  * design specifications.
- */ 
+ */
+
+int setup_connection();
+
+int accept_connection(int fd, int port);
+
+void get_incoming_msg(char message_buf[], int client_fd);
+
+void send_outgoing_msg(char message[], int client_fd);
+
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
@@ -46,26 +47,54 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    int fd = setup_connection();
+
+    int client_fd = accept_connection(fd, port);
+
+
+    char msg[] = "HELLO\n";
+    send_outgoing_msg(msg, client_fd);
+
+    char incoming[100];
+    get_incoming_msg(incoming, client_fd);
+
+    // Do something with receiving message
+    printf("Received message: %s", incoming);
+
+    close(client_fd);
+
+   
+    return 0;
+}
+
+int setup_connection() {
     // from tutorial code
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         printf("Error creating socket");
         exit(0);
     }
+    printf("Socket created\n");
+    return fd;
+}
 
+int accept_connection(int fd, int port) {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
+    printf("Address created\n");
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))<0) {
         printf("Error binding socket");
         exit(0);
     }
+    printf("Bind successful\n");
 
     if(listen(fd, SOMAXCONN) < 0) {
         printf("Error listening for connections");
         exit(0);
     }
+    printf("Listen successful\n");
 
     struct sockaddr_in client_addr;
     int addrlen = sizeof(client_addr);
@@ -74,27 +103,24 @@ int main(int argc, char *argv[])
         printf("Error accepting connection");
         exit(0);
     }
+    printf("Accept successful\n");
+    return client_fd;
+}
 
-
-    char msg[] = "hello, world";
-    ssize_t r = send(client_fd, msg, strlen(msg), 0);
+void send_outgoing_msg(char message[], int client_fd) {
+    ssize_t r = send(client_fd, message, strlen(message), 0);
     if(r < 0) {
         printf("Error sending message");
         close(client_fd);
         exit(0);
     }
+}
 
-    char incoming[100];
-    ssize_t r = recv(client_fd, incoming, 100, 0);
-    if(r <= 0) {
-        printf("Error receiving message");
+void get_incoming_msg(char message_buf[], int client_fd) {
+    ssize_t rec = recv(client_fd, message_buf, 100, 0);
+    if(rec <= 0) {
+        printf("Error receiving message_buf");
         close(client_fd);
         exit(0);
     }
-    // Do something with receiving message
-    printf("Received message: %s", incoming);
-
-
-   
-    return 0;
 }
