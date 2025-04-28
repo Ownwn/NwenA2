@@ -13,8 +13,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 
 /**
@@ -29,6 +31,8 @@
 int setup_connection();
 
 int accept_connection(int fd, int port);
+
+int setup_listen(int fd);
 
 void get_incoming_msg(char message_buf[], int client_fd);
 
@@ -51,16 +55,26 @@ int main(int argc, char *argv[])
 
     int client_fd = accept_connection(fd, port);
 
+    while (true) {
+        char msg[] = "HELLO\n";
+        send_outgoing_msg(msg, client_fd);
 
-    char msg[] = "HELLO\n";
-    send_outgoing_msg(msg, client_fd);
+        char incoming[100];
+        memset(incoming,0,strlen(incoming)); // clear incoming
 
-    char incoming[100];
-    get_incoming_msg(incoming, client_fd);
+        get_incoming_msg(incoming, client_fd);
 
-    // Do something with receiving message
-    printf("Received message: %s", incoming);
+        // Do something with receiving message
+        printf("Received message: %s", incoming);
 
+        if (strcasecmp(incoming, "BYE\n") == 0) {
+            close(client_fd);
+            client_fd = setup_listen(fd);
+            continue;
+        }
+        break;
+
+    }
     close(client_fd);
 
    
@@ -78,18 +92,7 @@ int setup_connection() {
     return fd;
 }
 
-int accept_connection(int fd, int port) {
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
-    printf("Address created\n");
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))<0) {
-        printf("Error binding socket");
-        exit(0);
-    }
-    printf("Bind successful\n");
-
+int setup_listen(int fd) {
     if(listen(fd, SOMAXCONN) < 0) {
         printf("Error listening for connections");
         exit(0);
@@ -105,6 +108,22 @@ int accept_connection(int fd, int port) {
     }
     printf("Accept successful\n");
     return client_fd;
+}
+
+int accept_connection(int fd, int port) {
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    printf("Address created\n");
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))<0) {
+        printf("Error binding socket");
+        exit(0);
+    }
+    printf("Bind successful\n");
+
+
+    return setup_listen(fd);
 }
 
 void send_outgoing_msg(char message[], int client_fd) {
