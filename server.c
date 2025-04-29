@@ -44,6 +44,8 @@ void serve_file(FILE *file, int client_fd);
 
 FILE* getFile(char incomingName[], char mode[]);
 
+void write_to_file(FILE *file, int client_fd);
+
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
@@ -100,6 +102,30 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        if (strncasecmp(incoming, "PUT", 3) == 0) {
+            if (strlen(incoming) <= 4) {
+                close_with_message(client_fd, "SERVER 500 Put Error\n");
+                client_fd = setup_listen(fd);
+                continue;
+            }
+
+            FILE *file = getFile(incoming, "w");
+
+            if (!file) {
+                close_with_message(client_fd, "SERVER 500 Put Error\n");
+                client_fd = setup_listen(fd);
+                continue;
+            }
+
+
+
+            write_to_file(file, client_fd);
+
+            close_with_message(client_fd, "SERVER 201 Created\n");
+            client_fd = setup_listen(fd);
+            continue;
+        }
+
 
         close_with_message(client_fd, "SERVER 502 Command Error\n");
         client_fd = setup_listen(fd);
@@ -107,6 +133,27 @@ int main(int argc, char *argv[])
 
     close(client_fd);
     return 0;
+}
+
+void write_to_file(FILE *file, int client_fd) {
+    char last_input[200]; // good enough length, can be increased
+    char second_last_input[200];
+
+    memset(last_input,0,strlen(last_input));
+    memset(second_last_input,0,strlen(second_last_input));
+    printf("\n");
+
+    while (strcmp(last_input, "\n") != 0 || strcmp(second_last_input, "\n") != 0) {
+        printf("last: %s\n", last_input);
+        printf("second last: %s\n", second_last_input);
+        strcpy(second_last_input, last_input);
+        memset(last_input,0,strlen(last_input));
+
+        get_incoming_msg(last_input, client_fd);
+
+        fprintf(file, last_input);
+    }
+    fclose(file);
 }
 
 FILE* getFile(char incomingName[], char mode[]) {
