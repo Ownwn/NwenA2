@@ -138,7 +138,6 @@ void write_to_file(FILE *file, int client_fd) {
 
     memset(last_input,0,strlen(last_input));
     memset(second_last_input,0,strlen(second_last_input));
-    printf("\n");
 
     while (strcmp(last_input, "\n") != 0 || strcmp(second_last_input, "\n") != 0) {
         // update latest inputs
