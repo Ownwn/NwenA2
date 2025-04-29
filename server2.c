@@ -78,8 +78,7 @@ int main(int argc, char* argv[]) {
             // fork failed. Send hello and listen for message, then do nothing as per spec
             send_outgoing_msg("HELLO\n", client_fd);
 
-            char incoming[100];
-            memset(incoming, 0, strlen(incoming)); // clear incoming
+            char incoming[100] = {0};
 
             get_incoming_msg(incoming, client_fd);
             close(client_fd);
@@ -92,8 +91,7 @@ int main(int argc, char* argv[]) {
 
     send_outgoing_msg("HELLO\n", client_fd);
 
-    char incoming[100];
-    memset(incoming, 0, strlen(incoming)); // clear incoming
+    char incoming[100] = {0};
 
     get_incoming_msg(incoming, client_fd);
 
@@ -130,16 +128,13 @@ int main(int argc, char* argv[]) {
 
 void write_to_file(FILE* file, int client_fd) {
     // keep track of 2 latest inputs, if they're both newlines we stop editing the file
-    char last_input[200]; // good enough length, can be increased
-    char second_last_input[200];
-
-    memset(last_input, 0, strlen(last_input));
-    memset(second_last_input, 0, strlen(second_last_input));
+    char last_input[200] = {0}; // good enough length, can be increased
+    char second_last_input[200] = {0};
 
     while (strcmp(last_input, "\n") != 0 || strcmp(second_last_input, "\n") != 0) {
         // update latest inputs
         strcpy(second_last_input, last_input);
-        memset(last_input, 0, strlen(last_input));
+        memset(last_input, 0, sizeof(last_input));
 
         get_incoming_msg(last_input, client_fd);
 
@@ -158,8 +153,7 @@ FILE* getFile(char incoming_command[], char mode[]) {
 
 void print_file(FILE* file, int client_fd) {
     send_outgoing_msg("SERVER 200 OK\n\n", client_fd);
-    char line[200]; // should be good enough to handle each line of file. can be increased arbitrarily
-    memset(line, 0, strlen(line));
+    char line[200] = {0}; // should be good enough to handle each line of file. can be increased arbitrarily
 
     while (fgets(line, sizeof(line), file) != NULL) {
         // print each line
