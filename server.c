@@ -42,7 +42,7 @@ void send_outgoing_msg(char message[], int client_fd);
 
 void serve_file(FILE *file, int client_fd);
 
-FILE* getFile(char incomingName[]);
+FILE* getFile(char incomingName[], char mode[]);
 
 int main(int argc, char *argv[])
 {
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
         printf("Received message: %s", incoming);
 
         if (strncasecmp(incoming, "BYE", 3) == 0) {
-            close_with_message(client_fd, "Goodbye!");
+            close(client_fd);
             client_fd = setup_listen(fd);
             continue;
         }
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            FILE *file = getFile(incoming);
+            FILE *file = getFile(incoming, "r");
 
             if (!file) {
                 close_with_message(client_fd, "SERVER 404 Not Found\n");
@@ -99,31 +99,33 @@ int main(int argc, char *argv[])
             client_fd = setup_listen(fd);
             continue;
         }
-        break;
 
+
+        close_with_message(client_fd, "SERVER 502 Command Error\n");
+        client_fd = setup_listen(fd);
     }
-    close(client_fd);
 
-   
+    close(client_fd);
     return 0;
 }
 
-FILE* getFile(char incomingName[]) {
+FILE* getFile(char incomingName[], char mode[]) {
     char file_name[100];
     strcpy(file_name, incomingName + 4);
     file_name[strlen(incomingName + 4) - 1] = '\0'; // get rid of newline on the end filename
 
-    return fopen(file_name, "r"); // file file_name after "GET "
+    return fopen(file_name, mode); // file file_name after "GET "
 }
 
 void serve_file(FILE *file, int client_fd) {
+    send_outgoing_msg("SERVER 200 OK\n\n", client_fd);
     char line[200]; // should be good enough
     memset(line,0,strlen(line));
 
     while (fgets(line, sizeof(line), file) != NULL) {
         send_outgoing_msg(line, client_fd);
     }
-    send_outgoing_msg("\n", client_fd);
+    send_outgoing_msg("\n\n\n", client_fd);
 
     fclose(file);
 }
