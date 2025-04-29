@@ -40,14 +40,13 @@ void get_incoming_msg(char message_buf[], int client_fd);
 
 void send_outgoing_msg(char message[], int client_fd);
 
-void print_file(FILE *file, int client_fd);
+void print_file(FILE* file, int client_fd);
 
 FILE* getFile(char incoming_command[], char mode[]);
 
-void write_to_file(FILE *file, int client_fd);
+void write_to_file(FILE* file, int client_fd);
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
     if (argc != 2) {
         return -1;
     }
@@ -69,7 +68,7 @@ int main(int argc, char *argv[])
         send_outgoing_msg("HELLO\n", client_fd);
 
         char incoming[100];
-        memset(incoming,0,strlen(incoming)); // clear incoming
+        memset(incoming, 0, strlen(incoming)); // clear incoming
 
         get_incoming_msg(incoming, client_fd);
 
@@ -85,7 +84,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            FILE *file = getFile(incoming, "r");
+            FILE* file = getFile(incoming, "r");
 
             if (!file) {
                 close_with_message(client_fd, "SERVER 404 Not Found\n");
@@ -107,7 +106,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            FILE *file = getFile(incoming, "w");
+            FILE* file = getFile(incoming, "w");
 
             if (!file) {
                 close_with_message(client_fd, "SERVER 500 Put Error\n");
@@ -131,18 +130,18 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void write_to_file(FILE *file, int client_fd) {
+void write_to_file(FILE* file, int client_fd) {
     // keep track of 2 latest inputs, if they're both newlines we stop editing the file
     char last_input[200]; // good enough length, can be increased
     char second_last_input[200];
 
-    memset(last_input,0,strlen(last_input));
-    memset(second_last_input,0,strlen(second_last_input));
+    memset(last_input, 0, strlen(last_input));
+    memset(second_last_input, 0, strlen(second_last_input));
 
     while (strcmp(last_input, "\n") != 0 || strcmp(second_last_input, "\n") != 0) {
         // update latest inputs
         strcpy(second_last_input, last_input);
-        memset(last_input,0,strlen(last_input));
+        memset(last_input, 0, strlen(last_input));
 
         get_incoming_msg(last_input, client_fd);
 
@@ -159,10 +158,10 @@ FILE* getFile(char incoming_command[], char mode[]) {
     return fopen(file_name, mode); // file file_name after "GET "
 }
 
-void print_file(FILE *file, int client_fd) {
+void print_file(FILE* file, int client_fd) {
     send_outgoing_msg("SERVER 200 OK\n\n", client_fd);
     char line[200]; // should be good enough to handle each line of file. can be increased arbitrarily
-    memset(line,0,strlen(line));
+    memset(line, 0, strlen(line));
 
     while (fgets(line, sizeof(line), file) != NULL) { // print each line
         send_outgoing_msg(line, client_fd);
@@ -190,7 +189,7 @@ int setup_connection() {
 
 int setup_listen(int fd) {
     // from tutorial code, start listening and accept connection from client
-    if(listen(fd, SOMAXCONN) < 0) {
+    if (listen(fd, SOMAXCONN) < 0) {
         printf("Error listening for connections");
         exit(0);
     }
@@ -198,8 +197,8 @@ int setup_listen(int fd) {
 
     struct sockaddr_in client_addr;
     int addrlen = sizeof(client_addr);
-    int client_fd = accept(fd, (struct sockaddr *)&client_addr, (socklen_t*)&addrlen);
-    if(client_fd < 0) {
+    int client_fd = accept(fd, (struct sockaddr*)&client_addr, (socklen_t*)&addrlen);
+    if (client_fd < 0) {
         printf("Error accepting connection");
         exit(0);
     }
@@ -214,7 +213,7 @@ int accept_connection(int fd, int port) {
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
     printf("Address created\n");
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))<0) {
+    if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         printf("Error binding socket");
         exit(0);
     }
@@ -226,7 +225,7 @@ int accept_connection(int fd, int port) {
 
 void send_outgoing_msg(char message[], int client_fd) {
     ssize_t r = send(client_fd, message, strlen(message), 0);
-    if(r < 0) {
+    if (r < 0) {
         printf("Error sending message");
         close(client_fd);
         exit(0);
@@ -235,7 +234,7 @@ void send_outgoing_msg(char message[], int client_fd) {
 
 void get_incoming_msg(char message_buf[], int client_fd) {
     ssize_t rec = recv(client_fd, message_buf, 100, 0);
-    if(rec <= 0) {
+    if (rec <= 0) {
         printf("Error receiving message_buf");
         close(client_fd);
         exit(0);
