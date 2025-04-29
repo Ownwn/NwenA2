@@ -40,9 +40,9 @@ void get_incoming_msg(char message_buf[], int client_fd);
 
 void send_outgoing_msg(char message[], int client_fd);
 
-void serve_file(FILE *file, int client_fd);
+void print_file(FILE *file, int client_fd);
 
-FILE* getFile(char incomingName[], char mode[]);
+FILE* getFile(char incoming_command[], char mode[]);
 
 void write_to_file(FILE *file, int client_fd);
 
@@ -63,17 +63,15 @@ int main(int argc, char *argv[])
 
     int client_fd = accept_connection(fd, port);
 
+    // we have a loop so the server continues listening when the client connection closes
+    // on error need to re-setup_listen() again and continue loop
     while (true) {
-        char msg[] = "HELLO\n";
-        send_outgoing_msg(msg, client_fd);
+        send_outgoing_msg("HELLO\n", client_fd);
 
         char incoming[100];
         memset(incoming,0,strlen(incoming)); // clear incoming
 
         get_incoming_msg(incoming, client_fd);
-
-        // Do something with receiving message
-        printf("Received message: %s", incoming);
 
         if (strncasecmp(incoming, "BYE", 3) == 0) {
             close(client_fd);
@@ -81,7 +79,7 @@ int main(int argc, char *argv[])
             continue;
         }
         if (strncasecmp(incoming, "GET", 3) == 0) {
-            if (strlen(incoming) <= 4) {
+            if (strlen(incoming) <= 4) { // no file specified
                 close_with_message(client_fd, "SERVER 500 Get Error\n");
                 client_fd = setup_listen(fd);
                 continue;
@@ -95,7 +93,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            serve_file(file, client_fd);
+            print_file(file, client_fd);
 
             close(client_fd);
             client_fd = setup_listen(fd);
@@ -103,7 +101,7 @@ int main(int argc, char *argv[])
         }
 
         if (strncasecmp(incoming, "PUT", 3) == 0) {
-            if (strlen(incoming) <= 4) {
+            if (strlen(incoming) <= 4) { // no file specified
                 close_with_message(client_fd, "SERVER 500 Put Error\n");
                 client_fd = setup_listen(fd);
                 continue;
@@ -116,8 +114,6 @@ int main(int argc, char *argv[])
                 client_fd = setup_listen(fd);
                 continue;
             }
-
-
 
             write_to_file(file, client_fd);
 
@@ -136,6 +132,7 @@ int main(int argc, char *argv[])
 }
 
 void write_to_file(FILE *file, int client_fd) {
+    // keep track of 2 latest inputs, if they're both newlines we stop editing the file
     char last_input[200]; // good enough length, can be increased
     char second_last_input[200];
 
@@ -144,8 +141,7 @@ void write_to_file(FILE *file, int client_fd) {
     printf("\n");
 
     while (strcmp(last_input, "\n") != 0 || strcmp(second_last_input, "\n") != 0) {
-        printf("last: %s\n", last_input);
-        printf("second last: %s\n", second_last_input);
+        // update latest inputs
         strcpy(second_last_input, last_input);
         memset(last_input,0,strlen(last_input));
 
@@ -156,20 +152,20 @@ void write_to_file(FILE *file, int client_fd) {
     fclose(file);
 }
 
-FILE* getFile(char incomingName[], char mode[]) {
+FILE* getFile(char incoming_command[], char mode[]) {
     char file_name[100];
-    strcpy(file_name, incomingName + 4);
-    file_name[strlen(incomingName + 4) - 1] = '\0'; // get rid of newline on the end filename
+    strcpy(file_name, incoming_command + 4); // get file name by chopping off GET or PUT
+    file_name[strlen(incoming_command + 4) - 1] = '\0'; // get rid of newline on the end of filename
 
     return fopen(file_name, mode); // file file_name after "GET "
 }
 
-void serve_file(FILE *file, int client_fd) {
+void print_file(FILE *file, int client_fd) {
     send_outgoing_msg("SERVER 200 OK\n\n", client_fd);
-    char line[200]; // should be good enough
+    char line[200]; // should be good enough to handle each line of file. can be increased arbitrarily
     memset(line,0,strlen(line));
 
-    while (fgets(line, sizeof(line), file) != NULL) {
+    while (fgets(line, sizeof(line), file) != NULL) { // print each line
         send_outgoing_msg(line, client_fd);
     }
     send_outgoing_msg("\n\n\n", client_fd);
@@ -183,7 +179,7 @@ void close_with_message(int client_fd, char message[]) {
 }
 
 int setup_connection() {
-    // from tutorial code
+    // from tutorial code, setup socket
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         printf("Error creating socket");
@@ -194,6 +190,7 @@ int setup_connection() {
 }
 
 int setup_listen(int fd) {
+    // from tutorial code, start listening and accept connection from client
     if(listen(fd, SOMAXCONN) < 0) {
         printf("Error listening for connections");
         exit(0);
@@ -212,6 +209,7 @@ int setup_listen(int fd) {
 }
 
 int accept_connection(int fd, int port) {
+    // from tutorial code, bind connection to port
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
