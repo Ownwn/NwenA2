@@ -40,6 +40,10 @@ void get_incoming_msg(char message_buf[], int client_fd);
 
 void send_outgoing_msg(char message[], int client_fd);
 
+void serve_file(FILE *file, int client_fd);
+
+FILE* getFile(char incomingName[]);
+
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
@@ -81,11 +85,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            char file_name[100];
-            strcpy(file_name, incoming + 4);
-            file_name[strlen(incoming + 4) - 1] = '\0'; // get rid of newline on the end filename
-
-            FILE *file = fopen(file_name, "r"); // file file_name after "GET "
+            FILE *file = getFile(incoming);
 
             if (!file) {
                 close_with_message(client_fd, "SERVER 404 Not Found\n");
@@ -93,21 +93,11 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            char line[200]; // should be good enough lol
-            memset(line,0,strlen(line));
+            serve_file(file, client_fd);
 
-            while (fgets(line, sizeof(line), file) != NULL) {
-                send_outgoing_msg(line, client_fd);
-            }
-
-            fclose(file);
-
-            close_with_message(client_fd, "found!\n");
+            close(client_fd);
             client_fd = setup_listen(fd);
             continue;
-
-
-           // todo close here
         }
         break;
 
@@ -116,6 +106,26 @@ int main(int argc, char *argv[])
 
    
     return 0;
+}
+
+FILE* getFile(char incomingName[]) {
+    char file_name[100];
+    strcpy(file_name, incomingName + 4);
+    file_name[strlen(incomingName + 4) - 1] = '\0'; // get rid of newline on the end filename
+
+    return fopen(file_name, "r"); // file file_name after "GET "
+}
+
+void serve_file(FILE *file, int client_fd) {
+    char line[200]; // should be good enough
+    memset(line,0,strlen(line));
+
+    while (fgets(line, sizeof(line), file) != NULL) {
+        send_outgoing_msg(line, client_fd);
+    }
+    send_outgoing_msg("\n", client_fd);
+
+    fclose(file);
 }
 
 void close_with_message(int client_fd, char message[]) {
