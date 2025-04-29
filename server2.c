@@ -64,16 +64,17 @@ int main(int argc, char *argv[])
 
     int client_fd = accept_connection(fd, port);
 
+    // loop so that the parent can continue running while spinning off child processes
     while (true) {
         pid_t pid = fork();
 
-        if (pid > 0) {
+        if (pid > 0) { // parent process, listen for next connection and keep looping
             close(client_fd);
             client_fd = setup_listen(fd);
             continue;
         }
 
-        if (pid < 0) {
+        if (pid < 0) { // fork failed. Send hello and listen for message, then do nothing as per spec
             send_outgoing_msg("HELLO\n", client_fd);
 
             char incoming[100];
@@ -83,58 +84,45 @@ int main(int argc, char *argv[])
             close(client_fd);
             return 0;
         }
+
+        // pid now must be 0, meaning child process, so we break out of the loop and process the client's request
         break;
-        // else pid == 0
     }
 
+    send_outgoing_msg("HELLO\n", client_fd);
 
+    char incoming[100];
+    memset(incoming,0,strlen(incoming)); // clear incoming
 
+    get_incoming_msg(incoming, client_fd);
 
-
-    // we have a loop so the server continues listening when the client connection closes
-    // on error need to re-setup_listen() again and continue loop
-    while (true) {
-        send_outgoing_msg("HELLO\n", client_fd);
-
-        char incoming[100];
-        memset(incoming,0,strlen(incoming)); // clear incoming
-
-        get_incoming_msg(incoming, client_fd);
-
-        if (strncasecmp(incoming, "BYE", 3) == 0) {
-            close(client_fd);
-            client_fd = setup_listen(fd);
-            continue;
-        }
-        if (strncasecmp(incoming, "GET", 3) == 0) {
-            if (strlen(incoming) <= 4) { // no file specified
-                close_with_message(client_fd, "SERVER 500 Get Error\n");
-                client_fd = setup_listen(fd);
-                continue;
-            }
-
-            FILE *file = getFile(incoming, "r");
-
-            if (!file) {
-                close_with_message(client_fd, "SERVER 404 Not Found\n");
-                client_fd = setup_listen(fd);
-                continue;
-            }
-
-            print_file(file, client_fd);
-
-            close(client_fd);
-            client_fd = setup_listen(fd);
-            continue;
+    if (strncasecmp(incoming, "BYE", 3) == 0) {
+        close(client_fd);
+        return 0;
+    }
+    if (strncasecmp(incoming, "GET", 3) == 0) {
+        if (strlen(incoming) <= 4) { // no file specified
+            close_with_message(client_fd, "SERVER 500 Get Error\n");
+            return 0;
         }
 
-        // no PUT instruction as per challenge spec
+        FILE *file = getFile(incoming, "r");
 
-        close_with_message(client_fd, "SERVER 502 Command Error\n");
-        client_fd = setup_listen(fd);
+        if (!file) {
+            close_with_message(client_fd, "SERVER 404 Not Found\n");
+            return 0;
+        }
+
+        print_file(file, client_fd);
+
+        close(client_fd);
+        return 0;
     }
 
-    close(client_fd);
+    // no PUT instruction as per challenge spec
+
+
+    close_with_message(client_fd, "SERVER 502 Command Error\n");
     return 0;
 }
 
